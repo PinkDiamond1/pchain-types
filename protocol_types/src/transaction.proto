@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package transaction;
+
+/// Transactions are authenticated, non-repudiable messages produced by external accounts 
+/// to authorize blockchain state transitions, either through token transfer or smart contract
+/// execution.
+message Transaction {
+    /// a protocol_types::crypto::PublicAddress
+    bytes from_address = 1;
+    /// a protocol_types::crypto::PublicAddress
+    bytes to_address = 2;
+    uint64 value = 3;
+    uint64 tip = 4;
+    uint64 gas_limit = 5;
+    uint64 gas_price = 6;
+    bytes data = 7;
+    uint64 n_txs_on_chain_from_address = 8;
+
+    /// a protocol_types::crypto::Sha256Hash
+    bytes hash = 9;
+
+    /// a protocol_types::crypto::Signature
+    bytes signature = 10;
+}
+
+/// Events are messages produced by smart contract executions that are persisted on the blockchain
+/// in a cryptographically-provable way. Events produced by transactions that call smart contracts
+/// are stored in the `events` field of a Block in the order in which they are emitted.
+message Event {
+    bytes topic = 1;
+    bytes value = 2;
+}
+
+message Receipt {
+    bytes status_code = 1;
+    uint64 gas_consumed = 2;
+    bytes return_value = 3;
+}
+
+/// Note: BlockHeader and Block will be replaced by Tendermint's inbuilt types in Testnet 2.
+message BlockHeader {
+    uint64 blockchain_id = 1;
+    uint64 block_version_number = 2;
+    
+    // Unix timestamp
+    uint32 timestamp = 3;
+
+    repeated uint32 no_of_events_emitted_by_tx = 4;
+
+    /// a protocol_types::crypto::Sha256Hash
+    bytes prev_block_hash = 5;
+
+    /// a protocol_types::crypto::Sha256Hash
+    bytes this_block_hash = 6;
+
+    /// a protocol_types::crypto::Sha256Hash
+    bytes txs_hash = 7;
+
+    /// a protocol_types::crypto::Sha256Hash
+    bytes state_hash = 8;
+    
+    /// a protocol_types::crypto::Sha256Hash
+    bytes events_hash = 9;
+
+    /// a protocol_types::crypto::Sha256Hash
+    bytes receipts_hash = 10;
+
+    /// a protocol_types::crypto::PublicAddress
+    bytes proposer_public_key = 11;
+
+    /// a protocol_types::crypto::Signature
+    bytes signature = 12;
+}
+
+/// Note: Blockheader and Block will be replaced by Tendermint's inbuilt types in Testnet 2.
+message Block {
+    BlockHeader header = 1;
+    repeated Transaction transactions = 2;
+    repeated Event events = 3;
+    repeated Receipt receipts = 4;
+}
+
+message Blocks {
+    repeated Block blocks = 1;
+}
+
+message Transactions {
+    repeated Transaction transactions = 1;
+}

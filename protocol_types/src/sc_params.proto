@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package sc_params;
+
+/// ParamsFromTransaction encapsulates information available inside a smart contract call that originates
+/// from the calling transaction itself.
+message ParamsFromTransaction {
+    // a protocol_types::crypto::PublicAddress
+    bytes to_address = 1;
+    // a protocol_types::crypto::PublicAddress
+    bytes from_address = 2;
+    bytes data = 3;
+    uint64 value = 4;
+    // a protocol_types::crypto::Sha256Hash
+    bytes transaction_hash = 5;
+}
+
+/// ParamsFromBlockchain encapsulates information available inside a smart contract call that originates
+/// from the larger context of the blockchain.
+message ParamsFromBlockchain {
+    uint64 this_block_number = 1;
+    // a protocol_types::crypto::Sha256Hash
+    bytes prev_block_hash = 2;
+    // Unix timestamp
+    uint32 timestamp = 3;
+    // a protocol_types::crypto::Sha256Hash
+    bytes random_bytes = 4;
+}

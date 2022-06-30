@@ -1,15 +1,9 @@
 [package]
-name = "pchain-types"
-version = "0.1.0"
-authors = ["ParallelChain Lab <info@parallelchain.io>"]
-edition = "2021"
-description = "parallelchain-protocol-types: Communication protocols used in ParallelChain Mainnet"
-license = "GPL-3.0"
-repository = "https://github.com/parallelchain-io/parallelchain-protocol-types/protocol_types"
+name = "protocol_types"
+version = "0.2.0"
+edition = "2018"
 
-[dependencies]
-bytes = "1.1"
-prost = "0.9"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[build-dependencies]
-prost-build = { version = "0.9" }
+[dev-dependencies]
+rand = "0.7"

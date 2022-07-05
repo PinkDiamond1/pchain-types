@@ -11,8 +11,10 @@ Table of Contents
    - [Transaction Event](#transaction-event)
    - [Transaction Receipt](#transaction-receipt)
    - [Transaction Receipt Status Code](#transaction-receipt-status-code)
+   - [Transaction CallData](#transaction-calldata)
    - [Merkle Proof](#merkle-proof)
    - [State Proof](#state-proof)
+   - [Unpadded Base64URL](#unpadded-base64-url)
    - [More general types](#generalizations)
 
 ## Design Characteristics
@@ -61,7 +63,7 @@ A few features shared by all data types defined by ParallelChain F Protocol Type
 |Transaction Data (Dt)	     |bytes |Bytes concatenation over all Transaction Entries|
 |Receipt Data (Dr)           |bytes |Bytes concatenation over all Receipt Entries|
 
-#### Transaction
+### Transaction
 
 | Name | Type | Description |
 |:--- |:--- |:--- |
@@ -77,7 +79,7 @@ A few features shared by all data types defined by ParallelChain F Protocol Type
 |Data size (tds)	        |u32	        |Data size (in bytes) of subsequent data|
 |Data (td)	                |bytes	        |Transaction data|
 
-#### Transaction Receipt
+### Transaction Receipt
 
 | Name | Type | Description |
 |:--- |:--- |:--- |
@@ -114,13 +116,21 @@ Categorization  Receipt Status Code
 |42| Internal Not Enough Balance For Transfer | Not enough balance to pay for transfer in an internal transaction.|
 |43| Other Error| Other error.|
 
-#### Transaction Event
+### Transaction Event
 | Name | Type | Description |
 |:--- |:--- |:--- |
 |Topic size	    |u32	|Size of topic (in bytes)|
 |Value size	    |u32	|Size of value (in bytes)|
 |Topic	        |bytes	|Key of this event. It is created from contract execution|
 |Value	        |bytes	|Value of this event. It is created from contract execution|
+
+### Transaction CallData
+Transaction CallData is used to select the Action or View method to be called in an EtoC transaction on a contract written using the ParallelChain F Smart Contract SDK and to provide the selected method with its arguments.
+
+| Name | Type | Description |
+|:---|:---|:---
+|Method name|String|Method to be called.|
+|Arguments|Vec&lt;u8&gt;\*|The product of [Borsh](https://borsh.io/)-serializing a Vec&lt;Vec&lt;u8&gt;&gt; with `length == number of arguments*. Each inner Vec&lt;u8&gt; is a single argument, again, Borsh-serialized.
 
 ### Merkle Proof
 | Name | Type | Description |
@@ -156,6 +166,12 @@ __Note__: `StateProofs` message definition is compatible to crate [trie-db](http
 // example 
 verify_proof::<NoExtensionLayout, _, _, _>(&root_hash, &proof, items.iter())
 ```
+### Unpadded Base64URL
+
+In some components of the ParallelChain F system, There is a need for a way to represent arbitrary byte sequences as UTF-8, url-safe strings. Two examples are: 1. The `GET /account` routes, where clients have to specify address of the account to GET from by including its address in the request URL, and 2. `very-light`, which stores keypairs in a JSON file (`keypair.json`).
+
+The standard bytes-to-characters encoding that all ParallelChain F components use is Base64URL, as defined in IETF RFC 4648, *without* padding characters. `protocol-types` exports an alias of String, `Base64URL`, alongside two functions `encode` and `decode` to convert from bytes to Base64URL and the other way around.
+
 
 ## Generalizations
 

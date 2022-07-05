@@ -1,3 +1,20 @@
+/*
+ Copyright (c) 2022 ParallelChain Lab
+ 
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 macro_rules! define_format {
     ( $($fm:ident | $size:literal | $offset:literal),* => $out_size:ident ) =>{
         $(
@@ -10,7 +27,7 @@ macro_rules! define_format {
 }
 
 /// Data format of Block Header
-pub(crate) mod fmt_blockheader {
+pub mod fmt_blockheader {
     // define format for BlockHeader
     define_format!(
         // field    | size  | offset
@@ -29,7 +46,7 @@ pub(crate) mod fmt_blockheader {
 }
 
 /// Data format of sizes on Block Data entries
-pub(crate) mod fmt_sizes {
+pub mod fmt_sizes {
     define_format!(
         // field    | size  | offset
         TRANSACTION | 4     | 0, // unused
@@ -39,7 +56,7 @@ pub(crate) mod fmt_sizes {
 }
 
 /// Data format of transactin entry
-pub(crate) mod fmt_transaction {
+pub mod fmt_transaction {
     // define format for Transaction
     define_format!(
         // field    | size  | offset
@@ -59,7 +76,7 @@ pub(crate) mod fmt_transaction {
 }
 
 /// Data format of TransactionDataContractDeployment
-pub(crate) mod fmt_transactiondata_contractdeployment {
+pub mod fmt_transactiondata_contractdeployment {
     // define format for Transaction
     define_format!(
         // field    | size  | offset
@@ -72,7 +89,7 @@ pub(crate) mod fmt_transactiondata_contractdeployment {
 }
 
 /// Data format of Event entry
-pub(crate) mod fmt_event {
+pub mod fmt_event {
      // define format for Event
      define_format!(
         // field          | size  | offset
@@ -85,7 +102,7 @@ pub(crate) mod fmt_event {
 }
 
 /// Data format of Receipt entry
-pub(crate) mod fmt_receipt {
+pub mod fmt_receipt {
     // define format for Receipt
     define_format!(
         // field        | size  | offset
@@ -100,7 +117,7 @@ pub(crate) mod fmt_receipt {
 }
 
 /// Data format of Merkle Proof
-pub(crate) mod fmt_merkleproof {
+pub mod fmt_merkleproof {
     // define format for MerkleProof
     define_format!(
         // field        | size  | offset

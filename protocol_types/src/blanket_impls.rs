@@ -1,5 +1,60 @@
+/*
+ Copyright (c) 2022 ParallelChain Lab
+ 
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 use std::mem;
 use crate::{Serializable, Deserializable, Error, ErrorKind};
+
+impl Serializable for u32 {
+    fn serialize(msg: &Self) -> Vec<u8> {
+        let mut buf = [0u8; mem::size_of::<u32>()];
+        buf.copy_from_slice(msg.to_le_bytes().as_slice());
+        buf.to_vec()
+    }
+}
+
+impl Deserializable<u32> for u32 {
+    fn deserialize(buf: &[u8]) -> Result<u32, Error> {
+        if buf.len() != mem::size_of::<u32>() {
+            return Err(Error::new(ErrorKind::IncorrectLength));
+        }
+        let mut bs = [0u8; mem::size_of::<u32>()];
+        bs.copy_from_slice(buf);
+        Ok(u32::from_le_bytes(bs))
+    }
+}
+
+impl Serializable for u64 {
+    fn serialize(msg: &Self) -> Vec<u8> {
+        let mut buf = [0u8; mem::size_of::<u64>()];
+        buf.copy_from_slice(msg.to_le_bytes().as_slice());
+        buf.to_vec()
+    }
+}
+
+impl Deserializable<u64> for u64 {
+    fn deserialize(buf: &[u8]) -> Result<u64, Error> {
+        if buf.len() != mem::size_of::<u64>() {
+            return Err(Error::new(ErrorKind::IncorrectLength));
+        }
+        let mut bs = [0u8; mem::size_of::<u64>()];
+        bs.copy_from_slice(buf);
+        Ok(u64::from_le_bytes(bs))
+    }
+}
 
 impl Serializable for Vec<u8> {
     fn serialize(msg: &Self) -> Vec<u8> {

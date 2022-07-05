@@ -1,3 +1,20 @@
+/*
+ Copyright (c) 2022 ParallelChain Lab
+ 
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 //! library crate `protocol-types` defines common, language agnostic types that are
 //! part of the core semantics of Mainnet (e.g., Transactions).
 //! 
@@ -18,6 +35,13 @@ pub mod sc_params;
 /// transaction defines transaction-related protocol types, including transactions, events, and receipts.
 pub mod transaction; 
 
+/// base64url defines a type which implements the basic operations on base64url (as defined in IETF RFC 4648) encoded binary data. base64url
+/// is the *only* binary-to-text encoding scheme used in ParallelChain F. 
+pub mod base64url;
+
+/// generic types implementation of traits Serializable and Deserializable
+pub mod blanket_impls;
+
 /// block defines block-related protocol types, including block headers and block.
 pub mod block;
 
@@ -34,13 +58,12 @@ pub mod error;
 /// a succinct way to describe what happened during the execution of the transaction. 
 pub mod receipt_status_codes;
 
-/// generic types implementation of traits Serializable and Deserializable
-pub mod blanket_impls;
 
 // Re-exports
 pub use sc_params::*;
 pub use crypto::*;
 pub use transaction::*;
+pub use base64url::*;
 pub use block::*;
 pub use blanket_impls::*;
 pub use proofs::*;
@@ -681,6 +704,18 @@ mod test {
 
     #[test]
     fn test_generics(){
+        // u32
+        let the_u32 = 1234_u32;
+        let serialized = u32::serialize(&the_u32);
+        let deserialized = u32::deserialize(&serialized).unwrap();
+        assert_eq!(the_u32, deserialized);
+
+        // u64
+        let the_u64 = 1234123412341234_u64;
+        let serialized = u64::serialize(&the_u64);
+        let deserialized = u64::deserialize(&serialized).unwrap();
+        assert_eq!(the_u64, deserialized);
+
         // Vec<u8>
         let vs = vec![];
         let serialized = Vec::<u8>::serialize(&vs);

@@ -95,6 +95,45 @@ impl<T> Deserializable<Option<T>> for Option<T> where T: Deserializable<T> {
     }
 }
 
+impl<T1,T2, T3> Serializable for (T1,T2, T3) where T1: Serializable, T2: Serializable, T3: Serializable {
+    fn serialize(msg: &Self) -> Vec<u8> {
+        let serialzied_1 = T1::serialize(&msg.0);
+        let serialzied_2 = T2::serialize(&msg.1);
+        let serialzied_3 = T3::serialize(&msg.2);
+        [
+            (serialzied_1.len() as u32).to_le_bytes().to_vec(),
+            (serialzied_2.len() as u32).to_le_bytes().to_vec(),
+            (serialzied_3.len() as u32).to_le_bytes().to_vec(),
+            serialzied_1,
+            serialzied_2,
+            serialzied_3
+        ].concat()
+    }
+}
+impl<T1,T2,T3> Deserializable<(T1,T2,T3)> for (T1,T2,T3) where T1: Deserializable<T1>, T2: Deserializable<T2>,T3: Deserializable<T3> {
+    fn deserialize(buf: &[u8]) -> Result<(T1, T2, T3), Error> {
+        if buf.len() < 3*mem::size_of::<u32>() {
+            return Err(Error::new(ErrorKind::IncorrectLength));
+        }
+        let size_1 = deserialize_u32!(buf, (mem::size_of::<u32>(), 0)) as usize;
+        let buf = &buf[mem::size_of::<u32>()..];
+        let size_2 = deserialize_u32!(buf, (mem::size_of::<u32>(), 0)) as usize;
+        let buf = &buf[mem::size_of::<u32>()..];
+        let size_3 = deserialize_u32!(buf, (mem::size_of::<u32>(), 0)) as usize;
+        let buf = &buf[mem::size_of::<u32>()..];
+        if buf.len() != size_1 + size_2 + size_3{
+            return Err(Error::new(ErrorKind::IncorrectLength));
+        }
+        let (serialized_1, serialized_2) = buf.split_at(size_1);
+        let (serialized_2, serialized_3) = serialized_2.split_at(size_2);
+        Ok((
+            T1::deserialize(serialized_1)?,
+            T2::deserialize(serialized_2)?,
+            T3::deserialize(serialized_3)?
+        ))
+    }
+}
+
 impl<T1,T2> Serializable for (T1,T2) where T1: Serializable, T2: Serializable {
     fn serialize(msg: &Self) -> Vec<u8> {
         let serialzied_1 = T1::serialize(&msg.0);

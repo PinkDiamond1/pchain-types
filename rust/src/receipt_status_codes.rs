@@ -1,23 +1,25 @@
 /*
- Copyright (c) 2022 ParallelChain Lab
- 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ Copyright 2022 ParallelChain Lab
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
  */
 
+use crate::{Serializable, Deserializable};
 use std::convert::TryFrom;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+
+/// ReceiptStatusCode defines the success and error types of receipt.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReceiptStatusCode {
 
     /* Success class. */
@@ -78,6 +80,26 @@ pub enum ReceiptStatusCode {
     Else,
 }
 
+impl borsh::BorshSerialize for ReceiptStatusCode {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        let c: u8 = self.clone().into();
+        c.serialize(writer)
+    }
+}
+
+impl borsh::BorshDeserialize for ReceiptStatusCode {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        match u8::deserialize(buf) {
+            Ok(b) => {
+                match Self::try_from(b) {
+                    Ok(sc) => Ok(sc),
+                    Err(_) => Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Cannot convert from ReceiptStatusCode"))
+                }
+            },
+            Err(e) => Err(e),
+        }
+    }
+}
 
 impl Into<u8> for ReceiptStatusCode {
     fn into(self) -> u8 {
@@ -107,7 +129,7 @@ impl Into<u8> for ReceiptStatusCode {
 }
 
 impl TryFrom<u8> for ReceiptStatusCode {
-    type Error = crate::error::Error;
+    type Error = ();
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -132,7 +154,7 @@ impl TryFrom<u8> for ReceiptStatusCode {
 
             50 => Ok(ReceiptStatusCode::Else),
 
-            _ => Err(Self::Error::new(crate::error::ErrorKind::ReceiptStatusCodeOutOfRange)),
+            _ => Err(()),
         }
     }
 }
@@ -154,5 +176,13 @@ impl ReceiptStatusCode {
         || ReceiptStatusCode::InternalRuntimeError == *self
         || ReceiptStatusCode::InternalNotEnoughBalanceForTransfer == *self
     }
+
+    pub fn is_retryable(&self) -> bool {
+        ReceiptStatusCode::WrongNonce == *self 
+        || ReceiptStatusCode::NotEnoughBalanceForGasLimit == *self 
+        || ReceiptStatusCode::NotEnoughBalanceForTransfer == *self 
+    }
 }
 
+impl Serializable<ReceiptStatusCode> for ReceiptStatusCode {}
+impl Deserializable<ReceiptStatusCode> for ReceiptStatusCode {}

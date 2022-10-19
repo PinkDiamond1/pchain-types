@@ -1,38 +1,26 @@
 /*
- Copyright (c) 2022 ParallelChain Lab
- 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ Copyright 2022 ParallelChain Lab
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
  */
 
-//! library crate `protocol-types` defines common, language agnostic types that are
-//! part of the core semantics of Mainnet (e.g., Transactions).
-//! 
-//! This crate is designed to easily deserialize these wire types into easy-to-use Rust types, 
-//! and vice versa: convert these Rust-types into vectors of bytes transportable over the wire.
-//! 
 //! run `cargo doc --open` to view rich documentation on the available types.
 
-
-/// encodings defines the data format of the common message used in Mainnet. 
-/// The crate includes const variables and macros which are useful in serialization or deserialization process.
-#[macro_use] 
-pub mod encodings;
-
-/// sc_params defines protocol types used to pass data into smart contract linear memory.
+/// sc_params defines protocol types used to pass data into smart contract linear memory, including
+/// [ParamsFromTransaction], [ParamsFromBlockchain], [CallData]
 pub mod sc_params;
 
-/// transaction defines transaction-related protocol types, including transactions, events, and receipts.
+/// transaction defines transaction-related protocol types, including [Transaction], [Event], and [Receipt].
 pub mod transaction; 
 
 /// base64url defines a type which implements the basic operations on base64url (as defined in IETF RFC 4648) encoded binary data. base64url
@@ -42,17 +30,14 @@ pub mod base64url;
 /// generic types implementation of traits Serializable and Deserializable
 pub mod blanket_impls;
 
-/// block defines block-related protocol types, including block headers and block.
+/// block defines block-related protocol types, including [BlockHeader] and [Block].
 pub mod block;
 
-/// proof defines structures used for verifying a Merkle tree
+/// proof defines structures used for verifying a Merkle tree, including [MerkleProof], [StateProofs]
 pub mod proofs;
 
 /// crypto defines cryptography-related protocol types, including public addresses, secret keys, signatures, and hashes.
 pub mod crypto;
-
-/// error defines custom error types on serialization process
-pub mod error;
 
 /// receipt_status_codes defines ReceiptStatusCodes, a byte included in every Transaction Receipt that provides
 /// a succinct way to describe what happened during the execution of the transaction. 
@@ -61,39 +46,45 @@ pub mod receipt_status_codes;
 
 // Re-exports
 pub use sc_params::*;
+pub use blanket_impls::*;
 pub use crypto::*;
 pub use transaction::*;
 pub use base64url::*;
 pub use block::*;
-pub use blanket_impls::*;
 pub use proofs::*;
 pub use receipt_status_codes::*;
-pub use error::*;
 
-pub trait Serializable {
-    fn serialize(_: &Self) -> Vec<u8>;
+
+/// Serializable encapsulates implementation of serialization on data structures that are defined in pchain-types.
+pub trait Serializable<T: borsh::BorshSerialize> {
+    fn serialize(args: &T) -> Vec<u8> {
+        args.try_to_vec().unwrap()
+    }
 }
 
-pub trait Deserializable<T> {
-    fn deserialize(_: &[u8]) -> Result<T, Error>;
+/// Deserializable encapsulates implementation of deserialization on data structures that are defined in pchain-types.
+pub trait Deserializable<T : borsh::BorshDeserialize> {
+    fn deserialize(args: &[u8]) -> Result<T, std::io::Error> {
+        T::try_from_slice(&args)
+    }
 }
+
 
 #[cfg(test)]
 mod test {
 
     use std::convert::TryFrom;
 
+    use hotstuff_rs_types::messages;
+
     use crate::{
         Block, BlockHeader, Transaction, Receipt, Event,
-        Serializable, Deserializable, ErrorKind, TransactionDataContractDeployment, MerkleProof, StateProofs, ReceiptStatusCode, encodings::{fmt_blockheader, fmt_receipt}
+        Serializable, Deserializable, DeployTransactionData, MerkleProof, StateProofs, ReceiptStatusCode,
     };
 
     use crate::{
         ParamsFromTransaction, ParamsFromBlockchain, CallData
     };
-
-    #[allow(deprecated)]
-    use crate::{Blocks, Transactions};
 
     macro_rules! measure_time {
         ($name:expr, $s:stmt) => {
@@ -132,7 +123,7 @@ mod test {
     fn test_paramsfromtransaction_error() {
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(ParamsFromTransaction::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(ParamsFromTransaction::deserialize(&empty_serialized).is_err());
 
         // test by removing one byte with empty data
         let tx_param = ParamsFromTransaction {
@@ -144,7 +135,7 @@ mod test {
         };
         let serialized = ParamsFromTransaction::serialize(&tx_param);
         let serialized = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(ParamsFromTransaction::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(ParamsFromTransaction::deserialize(&serialized).is_err());
 
         // test by removing one byte with data
         let tx_param = ParamsFromTransaction {
@@ -156,7 +147,7 @@ mod test {
         };
         let serialized = ParamsFromTransaction::serialize(&tx_param);
         let serialized = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(ParamsFromTransaction::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(ParamsFromTransaction::deserialize(&serialized).is_err());
     }
 
     #[test]
@@ -182,7 +173,7 @@ mod test {
     fn test_paramsfromblockchain_error() {
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(ParamsFromBlockchain::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(ParamsFromBlockchain::deserialize(&empty_serialized).is_err());
 
         // test by removing one byte
         let bc_param = ParamsFromBlockchain {
@@ -193,7 +184,7 @@ mod test {
         };
         let serialized = ParamsFromBlockchain::serialize(&bc_param);
         let serialized = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(ParamsFromBlockchain::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(ParamsFromBlockchain::deserialize(&serialized).is_err());
     }
 
     #[test]
@@ -215,7 +206,7 @@ mod test {
     fn test_calldata_error() {
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(CallData::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(CallData::deserialize(&empty_serialized).is_err());
         
         // test by removing one byte
         let call_data = CallData {
@@ -224,15 +215,12 @@ mod test {
         };
         let serialized = CallData::serialize(&call_data);
         let serialized = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(CallData::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(CallData::deserialize(&serialized).is_err());
 
         // test for invalid utf8 bytes
         let mut serialized = CallData::serialize(&call_data);
         serialized[9] = 129;
-        println!("{:?}", serialized);
-        assert_eq!(CallData::deserialize(&serialized).err().unwrap().kind(), ErrorKind::StringParseError);
-
-
+        assert!(CallData::deserialize(&serialized).is_err());
     }
 
     #[test]
@@ -240,7 +228,7 @@ mod test {
         let block = Block{
             header: random_blockheader(),
             transactions: random_transactions(1000,1000,0, 1024),
-            receipts: random_receipts(10, 10, 500,500,0, 1024)
+            receipts: random_receipts(10, 10, 500,500,0, 1024),
         };
 
         let serialized = measure_time!(
@@ -261,19 +249,17 @@ mod test {
     fn test_block_error() {
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(Block::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(Block::deserialize(&empty_serialized).is_err());
 
         let block = Block{
             header: random_blockheader(),
             transactions: random_transactions(1,1,128, 128),
-            receipts: random_receipts(1, 1, 1,1,128, 128)
+            receipts: random_receipts(1, 1, 1,1,128, 128),
         };
 
         let serialized = Block::serialize(&block);
-        let serialized_only_header = serialized[..fmt_blockheader::BASESIZE].to_vec();
-        assert_eq!(Block::deserialize(&serialized_only_header).err().unwrap().kind(), ErrorKind::IncorrectLength);
         let serialized_missing_last_byte = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(Block::deserialize(&serialized_missing_last_byte).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(Block::deserialize(&serialized_missing_last_byte).is_err());
     }
 
     #[test]
@@ -281,7 +267,6 @@ mod test {
         let header_1 = random_blockheader();
         let header_2 = header_1.clone();
 
-        assert_eq!(header_1, header_2);
         assert_eq!(BlockHeader::serialize(&header_1), BlockHeader::serialize(&header_2));
         
         let transactions_1 = random_transactions(1000,1000,0, 1024);
@@ -310,36 +295,6 @@ mod test {
         assert_eq!(Block::serialize(&block_1), Block::serialize(&block_2));
     }
 
-    #[allow(deprecated)]
-    #[test]
-    fn test_blocks() {
-        let mut blocks = vec![];
-        for _ in 0..10 {
-            blocks.push(Block{
-                header: random_blockheader(),
-                transactions: random_transactions(100,100,0, 1024),
-                receipts: random_receipts(100,100,10,10,0, 1024)
-            });
-        }
-        let blocks = Blocks { blocks };
-
-        let serialized = measure_time!(
-            serialization,
-            Blocks::serialize(&blocks)
-        );
-
-        let deserialized = measure_time!(
-            deserialization,
-            Blocks::deserialize(&serialized).unwrap()
-        );
-
-        assert_eq!(blocks.blocks.len(), deserialized.blocks.len());
-
-        for (i, block) in blocks.blocks.iter().enumerate() {
-            assert_block(block, &deserialized.blocks[i]);
-        }
-    }
-
     #[test]
     fn test_vec_blocks(){
         let mut blocks = vec![];
@@ -347,7 +302,7 @@ mod test {
             blocks.push(Block{
                 header: random_blockheader(),
                 transactions: random_transactions(100,100,0, 1024),
-                receipts: random_receipts(100,100,10,10,0, 1024)
+                receipts: random_receipts(100,100,10,10,0, 1024),
             });
         }
         let serialized = measure_time!(
@@ -370,52 +325,63 @@ mod test {
     #[test]
     fn test_blockheader(){
         let b = BlockHeader {
-            blockchain_id :1,
-            block_version_number : 2,
+            app_id :1,
+            version_number : 2,
+            height: 1,
             timestamp : 3,
-            prev_block_hash : [1u8; 32],
-            this_block_hash : [2u8; 32],
+            justify : hotstuff_rs_types::messages::QuorumCertificate{
+                view_number: 1,
+                block_hash: [2u8; 32],
+                sigs: hotstuff_rs_types::messages::SignatureSet {
+                    signatures: vec![],
+                    count_some: 0,
+                },
+            },
+            hash : [2u8; 32],
+            data_hash : [2u8; 32],
             txs_hash : [3u8; 32],
             state_hash : [4u8; 32],
             receipts_hash : [6u8; 32],
-            proposer_public_key : [7u8; 32],
-            signature : [8u8; 64]
         };
         let serialized = BlockHeader::serialize(&b);
 
         let deserialized = BlockHeader::deserialize(&serialized.as_slice()).unwrap();
 
-        assert_eq!(b.blockchain_id, deserialized.blockchain_id);
-        assert_eq!(b.block_version_number, deserialized.block_version_number);
+        assert_eq!(b.app_id, deserialized.app_id);
+        assert_eq!(b.version_number, deserialized.version_number);
+        assert_eq!(b.height, deserialized.height);
         assert_eq!(b.timestamp, deserialized.timestamp);
-        assert_eq!(b.prev_block_hash, deserialized.prev_block_hash);
-        assert_eq!(b.this_block_hash, deserialized.this_block_hash);
+        assert_eq!(b.hash, deserialized.hash);
         assert_eq!(b.txs_hash, deserialized.txs_hash);
         assert_eq!(b.state_hash, deserialized.state_hash);
         assert_eq!(b.receipts_hash, deserialized.receipts_hash);
-        assert_eq!(b.proposer_public_key, deserialized.proposer_public_key);
-        assert_eq!(b.signature, deserialized.signature);
-
     }
 
     #[test]
     fn test_blockheader_error() {
         // test by removing one byte
         let b = BlockHeader {
-            blockchain_id :1,
-            block_version_number : 2,
+            app_id :1,
+            version_number : 2,
+            height: 1,
             timestamp : 3,
-            prev_block_hash : [1u8; 32],
-            this_block_hash : [2u8; 32],
+            justify: hotstuff_rs_types::messages::QuorumCertificate{
+                view_number: 1,
+                block_hash: [2u8; 32],
+                sigs: hotstuff_rs_types::messages::SignatureSet {
+                    signatures: vec![],
+                    count_some: 0,
+                },
+            },
+            hash : [2u8; 32],
+            data_hash : [2u8; 32],
             txs_hash : [3u8; 32],
             state_hash : [4u8; 32],
             receipts_hash : [6u8; 32],
-            proposer_public_key : [7u8; 32],
-            signature : [8u8; 64]
         };
         let serialized = BlockHeader::serialize(&b);
         let serialized = serialized[..(serialized.len()-1)].to_vec();
-        assert_eq!(BlockHeader::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(BlockHeader::deserialize(&serialized).is_err());
     }
 
     #[test]
@@ -444,7 +410,7 @@ mod test {
     fn test_transaction_error() {
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(Transaction::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(Transaction::deserialize(&empty_serialized).is_err());
        
         // test by removing one byte with empty data
         let tx = Transaction{
@@ -461,7 +427,7 @@ mod test {
         };
         let serialized = Transaction::serialize(&tx);
         let serialized = serialized[..(serialized.len()-1)].to_vec();
-        assert_eq!(Transaction::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(Transaction::deserialize(&serialized).is_err());
 
         // test by removing one byte with data
         let tx = Transaction{
@@ -478,27 +444,8 @@ mod test {
         };
         let serialized = Transaction::serialize(&tx);
         let serialized = serialized[..(serialized.len()-1)].to_vec();
-        assert_eq!(Transaction::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(Transaction::deserialize(&serialized).is_err());
 
-    }
-    
-    #[allow(deprecated)]
-    #[test]
-    fn test_transactions(){
-        let transactions = Transactions {
-            transactions: random_transactions(100,100,0, 1024),
-        };
-
-        let serialized = Transactions::serialize(&transactions);
-
-        let deserialized = Transactions::deserialize(&serialized).unwrap();
-
-        assert_eq!(transactions.transactions.len(), deserialized.transactions.len());
-
-        for (i, tx) in transactions.transactions.iter().enumerate() {
-            let deserialized_tx = &deserialized.transactions[i];
-            assert_transaction(&tx, deserialized_tx);
-        }
     }
 
     #[test]
@@ -519,12 +466,12 @@ mod test {
 
     #[test]
     fn test_transactiondatacontractdeployment() {
-        let txdata = TransactionDataContractDeployment {
+        let txdata = DeployTransactionData {
             contract_code: random_bytes::<100_000>().to_vec(),
             contract_init_arguments: random_bytes::<10_24>().to_vec(),
         };
-        let serialized = TransactionDataContractDeployment::serialize(&txdata);
-        let deserialzied = TransactionDataContractDeployment::deserialize(&serialized).unwrap();
+        let serialized = DeployTransactionData::serialize(&txdata);
+        let deserialzied = DeployTransactionData::deserialize(&serialized).unwrap();
 
         assert_eq!(txdata.contract_code, deserialzied.contract_code);
         assert_eq!(txdata.contract_init_arguments, deserialzied.contract_init_arguments);
@@ -534,16 +481,16 @@ mod test {
     fn test_transactiondatacontractdeployment_error() {
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(TransactionDataContractDeployment::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(DeployTransactionData::deserialize(&empty_serialized).is_err());
 
         // test by removing one byte
-        let txdata = TransactionDataContractDeployment {
+        let txdata = DeployTransactionData {
             contract_code: random_bytes::<100_000>().to_vec(),
             contract_init_arguments: random_bytes::<10_24>().to_vec(),
         };
-        let serialized = TransactionDataContractDeployment::serialize(&txdata);
+        let serialized = DeployTransactionData::serialize(&txdata);
         let serialized = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(TransactionDataContractDeployment::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(DeployTransactionData::deserialize(&serialized).is_err());
     }
 
     #[test]
@@ -565,7 +512,7 @@ mod test {
     fn test_event_error(){
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(Event::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(Event::deserialize(&empty_serialized).is_err());
 
         // test by removing one byte
         let e = Event {
@@ -574,7 +521,7 @@ mod test {
         };
         let serialized = Event::serialize(&e);
         let serialized = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(Event::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(Event::deserialize(&serialized).is_err());
     }
     
     #[test]
@@ -603,7 +550,7 @@ mod test {
     fn test_receipt_error(){
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(Receipt::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(Receipt::deserialize(&empty_serialized).is_err());
 
         // test by removing one byte
         let r = Receipt{
@@ -612,13 +559,9 @@ mod test {
             return_value: vec![],
             events: random_events(10,10,0, 1024),
         };
-        let mut serialized = Receipt::serialize(&r);
+        let serialized = Receipt::serialize(&r);
         let serialized_missing_last_byte = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(Receipt::deserialize(&serialized_missing_last_byte).err().unwrap().kind(), ErrorKind::IncorrectLength);
-
-        // test wrong receipt status code;
-        serialized[fmt_receipt::STATUSCODE.1] = 255;
-        assert_eq!(Receipt::deserialize(&serialized).err().unwrap().kind(), ErrorKind::ReceiptStatusCodeOutOfRange);
+        assert!(Receipt::deserialize(&serialized_missing_last_byte).is_err());
     }
 
     #[test]
@@ -647,7 +590,7 @@ mod test {
     fn test_merkleproof_error() {
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(MerkleProof::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(MerkleProof::deserialize(&empty_serialized).is_err());
         
         // test by removing one byte
         let p = MerkleProof{
@@ -659,7 +602,7 @@ mod test {
         };
         let serialized = MerkleProof::serialize(&p);
         let serialized = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(MerkleProof::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(MerkleProof::deserialize(&serialized).is_err());
 
     }
 
@@ -684,7 +627,7 @@ mod test {
     fn test_stateproofs_error() {
         // test empty vector
         let empty_serialized :Vec<u8> = vec![];
-        assert_eq!(StateProofs::deserialize(&empty_serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(StateProofs::deserialize(&empty_serialized).is_err());
 
         // test by removing one byte
         let spfs = StateProofs {
@@ -699,7 +642,7 @@ mod test {
 
         let serialized = StateProofs::serialize(&spfs);
         let serialized = serialized[..serialized.len()-1].to_vec();
-        assert_eq!(StateProofs::deserialize(&serialized).err().unwrap().kind(), ErrorKind::IncorrectLength);
+        assert!(StateProofs::deserialize(&serialized).is_err());
     }
 
     #[test]
@@ -793,16 +736,14 @@ mod test {
     }
 
     fn assert_block(block: &Block, deserialized: &Block) {
-        assert_eq!(block.header.blockchain_id, deserialized.header.blockchain_id);
-        assert_eq!(block.header.block_version_number, deserialized.header.block_version_number);
+        assert_eq!(block.header.app_id, deserialized.header.app_id);
+        assert_eq!(block.header.version_number, deserialized.header.version_number);
         assert_eq!(block.header.timestamp, deserialized.header.timestamp);
-        assert_eq!(block.header.prev_block_hash, deserialized.header.prev_block_hash);
-        assert_eq!(block.header.this_block_hash, deserialized.header.this_block_hash);
+        assert_eq!(block.header.justify.block_hash, deserialized.header.hash);
+        assert_eq!(block.header.hash, deserialized.header.hash);
         assert_eq!(block.header.txs_hash, deserialized.header.txs_hash);
         assert_eq!(block.header.state_hash, deserialized.header.state_hash);
         assert_eq!(block.header.receipts_hash, deserialized.header.receipts_hash);
-        assert_eq!(block.header.proposer_public_key, deserialized.header.proposer_public_key);
-        assert_eq!(block.header.signature, deserialized.header.signature);
         
         assert_eq!(block.transactions.len(), deserialized.transactions.len());
         assert_eq!(block.receipts.len(), deserialized.receipts.len());
@@ -851,16 +792,23 @@ mod test {
 
     fn random_blockheader() -> BlockHeader {
         BlockHeader{
-            blockchain_id : rand::random::<u64>(),
-            block_version_number : rand::random::<u64>(),
+            app_id : rand::random::<u64>(),
+            version_number : 2,
+            height: rand::random::<u64>(),
             timestamp : rand::random::<u32>(),
-            prev_block_hash : random_bytes::<32>(),
-            this_block_hash : random_bytes::<32>(),
-            txs_hash : random_bytes::<32>(),
+            justify: hotstuff_rs_types::messages::QuorumCertificate{
+                view_number: 1,
+                block_hash: [2u8; 32],
+                sigs: hotstuff_rs_types::messages::SignatureSet {
+                    signatures: vec![],
+                    count_some: 0,
+                },
+            },
+            hash : [2u8; 32],
+            data_hash : [2u8; 32],
+            txs_hash : [3u8; 32],
             state_hash : random_bytes::<32>(),
             receipts_hash : random_bytes::<32>(),
-            proposer_public_key : random_bytes::<32>(),
-            signature :random_bytes::<64>(),
         }
     }
 
@@ -949,4 +897,3 @@ mod test {
         ret
     }
 }
-    
